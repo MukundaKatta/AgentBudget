@@ -1,0 +1,52 @@
+{
+  "name": "@mukundakatta/agentbudget",
+  "version": "0.1.0",
+  "description": "Token + dollar budget caps for AI agents — throws when an LLM call would push past the ceiling. Zero deps, drop into any provider SDK.",
+  "type": "module",
+  "main": "src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test 'test/**/*.test.js'",
+    "test:examples": "node --test 'examples/**/*.test.js'",
+    "test:all": "node --test 'test/**/*.test.js' 'examples/**/*.test.js'"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "llm",
+    "budget",
+    "tokens",
+    "cost",
+    "ceiling",
+    "rate-limit",
+    "spending",
+    "anthropic",
+    "openai",
+    "claude",
+    "gpt"
+  ],
+  "author": "Mukunda Katta",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MukundaKatta/AgentBudget.git"
+  },
+  "homepage": "https://github.com/MukundaKatta/AgentBudget#readme",
+  "bugs": {
+    "url": "https://github.com/MukundaKatta/AgentBudget/issues"
+  }
+}
