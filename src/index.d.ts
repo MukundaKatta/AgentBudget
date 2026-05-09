@@ -118,3 +118,82 @@ export function computeCost(
   rate: ModelRate,
   usage: { inputTokens: number; outputTokens: number },
 ): number;
+
+// --- v0.2: retry-aware decoration ----------------------------------------
+
+/** Per-attempt observable lifecycle event emitted by ``withBudget``. */
+export interface AttemptEvent {
+  kind: 'start' | 'retry' | 'success' | 'failure';
+  /** 1-indexed attempt; 0 only for the ``start`` event. */
+  attempt: number;
+  /** Sum of ``costExtractor(result)`` across successful sub-calls. */
+  cumulativeCostUsd: number;
+  /** Wall-clock ms since the wrapped call began. */
+  cumulativeLatencyMs: number;
+  lastError?: unknown;
+  errorClassification: 'retryable' | 'fatal' | 'unknown' | 'none';
+}
+
+export interface WithBudgetOptions<R> {
+  maxAttempts?: number;
+  maxCostUsd?: number;
+  maxWallClockMs?: number;
+  retryOn?: ReadonlyArray<Function>;
+  fatalOn?: ReadonlyArray<Function>;
+  /** Pull a per-call USD cost from the resolved result. */
+  costExtractor?: (result: R) => number;
+  /** Default true. When false, ``adversarialThreshold`` is ignored. */
+  detectAdversarialLoop?: boolean;
+  /** Default 3. Same exception fingerprint N times in a row → throw. */
+  adversarialThreshold?: number;
+  backoffInitialMs?: number;
+  backoffMaxMs?: number;
+  backoffFactor?: number;
+  onAttempt?: (evt: AttemptEvent) => void;
+  /** Override sleep for testing. Defaults to ``setTimeout``. */
+  sleep?: (ms: number) => Promise<void>;
+}
+
+/**
+ * Wrap an async function with retry + budget + adversarial detection.
+ *
+ * ``Budget`` is post-call accounting; ``withBudget`` is pre-call protection.
+ * Use one or both — they don't interact.
+ */
+export function withBudget<F extends (...args: any[]) => Promise<any>>(
+  fn: F,
+  opts?: WithBudgetOptions<Awaited<ReturnType<F>>>,
+): F;
+
+/** Thrown when ``withBudget`` exhausts attempts/wall-clock/cost. */
+export class WithBudgetExceededError extends Error {
+  readonly name: 'WithBudgetExceededError';
+  readonly kind: 'attempts' | 'wallClockMs' | 'costUsd';
+  readonly limit: number;
+  readonly observed: number;
+  readonly attempts: number;
+  readonly lastError?: unknown;
+}
+
+/**
+ * Thrown when ``withBudget`` detects ``adversarialThreshold`` consecutive
+ * exceptions with the same fingerprint — catches the retry-amplification
+ * class of bug from jxnl/instructor#2056.
+ */
+export class AdversarialLoopDetectedError extends Error {
+  readonly name: 'AdversarialLoopDetectedError';
+  readonly repetitions: number;
+  readonly fingerprint: string;
+}
+
+/** Classify an error against retryOn/fatalOn sets. ``fatalOn`` wins. */
+export function classifyException(
+  err: unknown,
+  opts?: {
+    retryOn?: ReadonlyArray<Function>;
+    fatalOn?: ReadonlyArray<Function>;
+  },
+): 'retryable' | 'fatal' | 'unknown';
+
+/** Stable fingerprint of an error for adversarial-loop detection. */
+export function fingerprintException(err: unknown): string;
