@@ -1,7 +1,7 @@
 {
   "name": "@mukundakatta/agentbudget",
-  "version": "0.1.0",
-  "description": "Token + dollar budget caps for AI agents — throws when an LLM call would push past the ceiling. Zero deps, drop into any provider SDK.",
+  "version": "0.2.0",
+  "description": "Token + dollar budget caps for AI agents — throws when an LLM call would push past the ceiling. v0.2 adds withBudget retry decorator with adversarial-loop detection. Zero deps, drop into any provider SDK.",
   "type": "module",
   "main": "src/index.js",
   "types": "./src/index.d.ts",
@@ -31,6 +31,8 @@
     "ceiling",
     "rate-limit",
     "spending",
+    "retry",
+    "backoff",
     "anthropic",
     "openai",
     "claude",

@@ -45,3 +45,26 @@ export class UnknownPricingError extends Error {
     this.model = model;
   }
 }
+
+/**
+ * Thrown by ``withBudget`` when the same exception fingerprint repeats N
+ * times in a row (default 3). Catches retry-amplification: a prompt-injected
+ * or malformed LLM response that always fails validation, silently burning
+ * budget. See https://github.com/jxnl/instructor/issues/2056.
+ */
+export class AdversarialLoopDetectedError extends Error {
+  /**
+   * @param {object} info
+   * @param {number} info.repetitions
+   * @param {string} info.fingerprint
+   */
+  constructor(info) {
+    super(
+      `agentbudget: adversarial loop detected — ${info.repetitions} consecutive ` +
+        `identical failures (fingerprint=${JSON.stringify(info.fingerprint)})`,
+    );
+    this.name = 'AdversarialLoopDetectedError';
+    this.repetitions = info.repetitions;
+    this.fingerprint = info.fingerprint;
+  }
+}

@@ -139,6 +139,80 @@ budget.remaining();
 
 `budget.reset()` zeroes the totals but keeps caps + pricing — useful for re-using one Budget across runs.
 
+## `withBudget` — retry-aware decoration (v0.2+)
+
+`Budget` is a post-call accumulator. `withBudget` is the dual: a pre-call decorator that wraps an async function with retry + budget + adversarial-loop detection. Use one or both — they don't interact.
+
+Why exist when `p-retry` / `async-retry` are everywhere on npm:
+- They're generic. No LLM cost cap, no adversarial-loop detection, no per-attempt event taxonomy.
+- The OpenAI / Anthropic SDK `maxRetries` is just an integer.
+- Instructor's retry hook ([jxnl/instructor#2222](https://github.com/jxnl/instructor/issues/2222)) doesn't expose `attemptNumber` / cumulative state — can't distinguish a retryable mid-flight failure from a final one.
+- Instructor security audit ([#2056](https://github.com/jxnl/instructor/issues/2056)) flagged retry-amplification: a prompt-injected response that always fails validation can drive unbounded retries and cost. `withBudget` detects this.
+
+```js
+import {
+  withBudget,
+  AdversarialLoopDetectedError,
+  WithBudgetExceededError,
+} from '@mukundakatta/agentbudget';
+
+class RateLimitError extends Error {}
+class ContentPolicyError extends Error {}
+
+const wrapped = withBudget(
+  async (prompt) => callLLM(prompt),
+  {
+    maxAttempts: 5,
+    maxCostUsd: 0.10,
+    maxWallClockMs: 30_000,
+    retryOn: [RateLimitError],
+    fatalOn: [ContentPolicyError],
+    costExtractor: (r) => r.usage.cost_usd,
+    onAttempt: (evt) => log.info(evt),  // see "Hooks" below
+  },
+);
+
+try {
+  const result = await wrapped(prompt);
+} catch (err) {
+  if (err instanceof AdversarialLoopDetectedError) {
+    log.error(`validation always failing — fingerprint=${err.fingerprint}`);
+  } else if (err instanceof WithBudgetExceededError) {
+    log.error(`${err.kind} budget exhausted after ${err.attempts} attempts`);
+  } else {
+    throw err;  // unknown / fatal exceptions re-thrown as-is
+  }
+}
+```
+
+### Behavior
+
+On exception:
+- **`fatalOn`** beats `retryOn` — re-thrown immediately without retry.
+- **`retryOn`** — retried with exponential backoff (clamped to `backoffMaxMs` and to remaining `maxWallClockMs`) until `maxAttempts` exhausts.
+- **Unknown** (in neither set) — re-thrown immediately. `withBudget` never blindly retries an exception class you didn't opt into.
+
+On success: if `costExtractor` is set, its return value is added to cumulative cost; if cumulative > `maxCostUsd`, throws `WithBudgetExceededError({ kind: 'costUsd' })`.
+
+Adversarial loop: if the same `fingerprintException(err)` repeats `adversarialThreshold` times in a row (default 3), throws `AdversarialLoopDetectedError`. Set `detectAdversarialLoop: false` to disable.
+
+### Hooks
+
+`onAttempt` fires at lifecycle moments (`'start' | 'retry' | 'success' | 'failure'`) and receives an `AttemptEvent`:
+
+```ts
+interface AttemptEvent {
+  kind: 'start' | 'retry' | 'success' | 'failure';
+  attempt: number;            // 1-indexed; 0 only for "start"
+  cumulativeCostUsd: number;
+  cumulativeLatencyMs: number;
+  lastError?: unknown;
+  errorClassification: 'retryable' | 'fatal' | 'unknown' | 'none';
+}
+```
+
+Hooks that throw are swallowed — instrumentation bugs never break the wrapped call.
+
 ## Sibling libraries
 
 Part of the [`@mukundakatta/agent*`](https://github.com/MukundaKatta?tab=repositories&q=agent) reliability stack:
