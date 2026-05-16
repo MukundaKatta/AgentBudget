@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/MukundaKatta/AgentBudget/security/policy
+    about: Report security issues privately per SECURITY.md. Do not file a public issue.
+  - name: Retry / adversarial-loop work
+    url: https://github.com/MukundaKatta/AgentBudget/pull/1
+    about: The withBudget retry decorator + adversarial-loop detection are in v0.2 (PR #1). If your issue relates to retry behavior, please comment there.
+  - name: Python sibling
+    url: https://github.com/MukundaKatta/AgentBudgetPy/issues
+    about: For bugs in the Python port or in the canonical Python pricing data, the AgentBudgetPy repo is the source of truth on that side.
+  - name: Go sibling
+    url: https://github.com/MukundaKatta/agentbudget-go/issues
+    about: For bugs in the Go port.

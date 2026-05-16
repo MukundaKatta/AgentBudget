@@ -17,9 +17,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test 'test/**/*.test.js'",
-    "test:examples": "node --test 'examples/**/*.test.js'",
-    "test:all": "node --test 'test/**/*.test.js' 'examples/**/*.test.js'"
+    "test": "node --test test/*.test.js",
+    "test:examples": "node --test examples/*.test.js",
+    "test:all": "node --test test/*.test.js examples/*.test.js"
   },
   "keywords": [
     "ai",
