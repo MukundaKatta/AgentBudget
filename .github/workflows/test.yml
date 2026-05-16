@@ -1,0 +1,110 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel in-flight runs for the same branch/PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '20', '22']
+        os: [ubuntu-latest]
+        include:
+          # Spot-check the LTS on macOS + Windows so we don't ship
+          # path-separator or import-specifier regressions to those users.
+          - node: '20'
+            os: macos-latest
+          - node: '20'
+            os: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # There's no `npm ci` step on purpose — this package has zero
+      # runtime deps and (currently) no dev deps either. If that changes,
+      # add `npm ci` before the test step.
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Runnable examples (smoke)
+        run: npm run test:examples
+
+  zero-runtime-deps-gate:
+    name: zero runtime deps
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The whole pitch of this library is "zero runtime dependencies."
+      # If a PR adds one, CI should refuse to merge it without an
+      # explicit, eyes-open override.
+      - name: Assert package.json has no runtime dependencies
+        run: |
+          node -e '
+            const pkg = require("./package.json");
+            const deps = pkg.dependencies || {};
+            const keys = Object.keys(deps);
+            if (keys.length > 0) {
+              console.error("agentbudget is zero-runtime-dep by design.");
+              console.error("This PR adds: " + keys.join(", "));
+              console.error("If this is intentional, remove this CI step in the same PR and explain why in the PR description.");
+              process.exit(1);
+            }
+          '
+
+  package-smoke:
+    name: npm pack content check
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: npm pack dry-run + content check
+        run: |
+          npm pack --dry-run
+          npm pack --json | node -e '
+            const fs = require("fs");
+            const j = JSON.parse(fs.readFileSync(0, "utf8"));
+            const files = j[0].files.map(f => f.path);
+            const required = ["src/index.js", "src/index.d.ts", "README.md", "LICENSE"];
+            const missing = required.filter(r => !files.includes(r) && !files.some(f => f.startsWith(r)));
+            if (missing.length) {
+              console.error("missing from tarball:", missing);
+              process.exit(1);
+            }
+            // No node_modules should ever end up in the tarball.
+            const leaked = files.filter(f => f.startsWith("node_modules/"));
+            if (leaked.length) {
+              console.error("node_modules leaked into tarball:", leaked);
+              process.exit(1);
+            }
+          '
