@@ -1,5 +1,12 @@
 # agentbudget
 
+[![npm](https://img.shields.io/npm/v/@mukundakatta/agentbudget.svg)](https://www.npmjs.com/package/@mukundakatta/agentbudget)
+[![npm downloads](https://img.shields.io/npm/dm/@mukundakatta/agentbudget.svg)](https://www.npmjs.com/package/@mukundakatta/agentbudget)
+[![CI](https://github.com/MukundaKatta/AgentBudget/actions/workflows/test.yml/badge.svg)](https://github.com/MukundaKatta/AgentBudget/actions/workflows/test.yml)
+[![Node](https://img.shields.io/node/v/@mukundakatta/agentbudget.svg)](https://nodejs.org)
+[![license](https://img.shields.io/npm/l/@mukundakatta/agentbudget.svg)](./LICENSE)
+[![runtime deps](https://img.shields.io/badge/runtime%20deps-0-brightgreen)](./package.json)
+
 Token + dollar budget caps for AI agents. Throws `BudgetExceededError` when an LLM call would push past the ceiling. Zero deps, drop into any provider SDK.
 
 ```bash
